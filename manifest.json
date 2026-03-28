@@ -1,0 +1,16 @@
+{
+  "name": "System Panic Prank",
+  "short_name": "PanicPrank",
+  "description": "Симуляция системного взлома — просто пранк",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#ff0000",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
