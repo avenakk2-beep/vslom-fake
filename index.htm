@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Системная диагностика</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            font-family: 'Courier New', 'Fira Code', monospace;
+            height: 100vh;
+            overflow: hidden;
+            color: #0f0;
+        }
+
+        .terminal {
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            overflow-y: auto;
+            background: #000;
+            position: relative;
+        }
+
+        .line {
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.4;
+            margin-bottom: 2px;
+            font-size: 14px;
+        }
+
+        /* BSOD стиль */
+        .bsod {
+            background: #0a0f6f;
+            color: #fff;
+            padding: 30px 20px;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .bsod .line {
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .red { color: #ff0000; }
+        .green { color: #00ff00; }
+        .yellow { color: #ffff00; }
+        .cyan { color: #00ffff; }
+        .magenta { color: #ff00ff; }
+        .bold { font-weight: bold; }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .blink {
+            animation: blink 1s step-end infinite;
+        }
+
+        .terminal::-webkit-scrollbar {
+            width: 4px;
+        }
+        .terminal::-webkit-scrollbar-track {
+            background: #111;
+        }
+        .terminal::-webkit-scrollbar-thumb {
+            background: #333;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="terminal"></div>
+
+    <script>
+        // --- КОНФИГУРАЦИЯ ---
+        const config = {
+            platform: navigator.platform.includes('Win') ? 'windows' : 'unix',
+            totalDuration: 55000,
+        };
+
+        let currentScreen = 'start';
+        let revealTimeout = null;
+
+        const terminal = document.getElementById('app');
+
+        function clearScreen() {
+            terminal.innerHTML = '';
+        }
+
+        function addLine(text, className = '') {
+            const div = document.createElement('div');
+            div.className = `line ${className}`;
+            div.innerHTML = text;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function addLines(lines, delay = 80) {
+            return new Promise((resolve) => {
+                lines.forEach((line, idx) => {
+                    setTimeout(() => {
+                        addLine(line.text, line.class || '');
+                        if (idx === lines.length - 1) resolve();
+                    }, delay * idx);
+                });
+            });
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // --- СЦЕНА 1: BSOD / KERNEL PANIC (РУССКИЙ) ---
+        async function scene_bsod() {
+            clearScreen();
+            terminal.className = 'bsod';
+            
+            if (config.platform === 'windows') {
+                const bsodLines = [
+                    { text: '', class: '' },
+                    { text: '='.repeat(55), class: '' },
+                    { text: '    :( Ваше устройство столкнулось с проблемой и требует перезагрузки', class: '' },
+                    { text: '', class: '' },
+                    { text: '    Код остановки: CRITICAL_PROCESS_DIED', class: '' },
+                    { text: '', class: '' },
+                    { text: '    Сбойный модуль: ntoskrnl.exe + 0x3f2a1b', class: '' },
+                    { text: '', class: '' },
+                    { text: '    Дамп памяти: 0x7E3F2A1B', class: '' },
+                    { text: '='.repeat(55), class: '' },
+                ];
+                await addLines(bsodLines, 80);
+                await sleep(3000);
+                
+                clearScreen();
+                addLine('Подготовка автоматического восстановления...', 'yellow');
+                await sleep(2000);
+                addLine('Диагностика вашего ПК...', 'yellow');
+                await sleep(1500);
+                addLine('[ОШИБКА] Нарушение целостности системы', 'red');
+                await sleep(1000);
+                addLine('[ОШИБКА] Повреждены данные конфигурации загрузки', 'red');
+                await sleep(1000);
+                addLine('[ОШИБКА] Не удалось восстановить системные файлы', 'red');
+                await sleep(1000);
+            } else {
+                const panicLines = [
+                    { text: '╔════════════════════════════════════════════════════════════════╗', class: 'red bold' },
+                    { text: '║                    KERNEL PANIC — НЕ УДАЛОСЬ ПОДКЛЮЧИТЬ ROOT    ║', class: 'red bold' },
+                    { text: '╚════════════════════════════════════════════════════════════════╝', class: 'red bold' },
+                    { text: '', class: '' },
+                    { text: '[   0.892134] ---[ kernel panic - not syncing: VFS: Невозможно подключить root fs', class: 'red' },
+                    { text: '[   0.892145] CPU: 0 PID: 1 Comm: swapper/0 Not tainted', class: 'red' },
+                    { text: '[   0.892152] Аппаратное обеспечение: System Manufacturer', class: 'red' },
+                    { text: '[   0.892158] Call Trace:', class: 'red' },
+                    { text: '[   0.892162]  dump_stack+0x6b/0x80', class: 'red' },
+                    { text: '[   0.892171]  panic+0x101/0x2e0', class: 'red' },
+                    { text: '[   0.892179]  mount_block_root+0x1e0/0x1f0', class: 'red' },
+                    { text: '', class: '' },
+                    { text: '[!] КРИТИЧЕСКАЯ ОШИБКА: Нарушена целостность ядра', class: 'red bold' },
+                    { text: '[!] КРИТИЧЕСКАЯ ОШИБКА: Обнаружено вмешательство в Secure Boot', class: 'red bold' },
+                    { text: '[!] КРИТИЧЕСКАЯ ОШИБКА: Модули ядра повреждены', class: 'red bold' },
+                ];
+                await addLines(panicLines, 70);
+                await sleep(4000);
+            }
+        }
+
+        // --- СЦЕНА 2: ДАМП ТОКЕНОВ (РУССКИЙ) ---
+        async function scene_token_dump() {
+            terminal.className = 'terminal';
+            
+            addLine('', '');
+            addLine('[!] ЭКСПЛУАТАЦИЯ: CVE-2025-44231 (Token Impersonation)', 'red bold');
+            await sleep(800);
+            
+            addLine('[+] Дамп памяти LSASS...', 'yellow');
+            await sleep(1200);
+            addLine('[+] Извлечённые токены:', 'green');
+            await sleep(300);
+            
+            const tokens = [
+                "NT AUTHORITY\\SYSTEM",
+                "DOMAIN\\Administrator",
+                "root (UID=0)",
+                "sudo ALL=(ALL:ALL) ALL",
+                "BitLocker Recovery Key: 482739-162847-394827-162837",
+                "DPAPI Master Key: 7E3F2A1B-9C4D-8E5F-2A6B-3C7D1E8F9A0B"
+            ];
+            
+            for (const token of tokens) {
+                addLine(`    -> ${token}`, 'cyan');
+                await sleep(400);
+            }
+            
+            addLine('', '');
+            addLine('[!] Установка персистентности через WMI и планировщик задач...', 'red');
+            await sleep(1500);
+            addLine('[!] Отключение Windows Defender и брандмауэра...', 'red');
+            await sleep(1000);
+            addLine('[!] Отключение защиты от несанкционированного доступа', 'red');
+            await sleep(800);
+        }
+
+        // --- СЦЕНА 3: ФАЛОШИФРОВАНИЕ (РУССКИЙ) ---
+        async function scene_encryption() {
+            addLine('', '');
+            addLine('[!] АКТИВИРОВАН ВЫМОГАТЕЛЬ', 'red bold');
+            addLine('[*] Шифрование личных файлов...', 'yellow');
+            addLine('', '');
+            
+            const files = [
+                "Документы/Финансовые_отчеты.xlsx",
+                "Документы/Пароли.txt",
+                "Изображения/Фото_отпуск",
+                "Рабочий_стол/Важные_документы",
+                "Загрузки/Bitcoin_Wallet.dat",
+                "AppData/Local/Steam/config.vdf",
+                "OneDrive/Резервная_копия",
+                "Рабочий_стол/Договоры",
+                "Документы/Паспорт_скан.pdf"
+            ];
+            
+            for (const file of files) {
+                const progress = Math.floor(Math.random() * 40) + 55;
+                const barLength = Math.floor(progress / 2);
+                const bar = '█'.repeat(barLength) + '░'.repeat(50 - barLength);
+                addLine(`    [${bar}] ${progress}% - Шифрование: ${file}`, '');
+                await sleep(250);
+            }
+            
+            addLine('', '');
+            addLine('[✓] ШИФРОВАНИЕ ЗАВЕРШЕНО: 3 421 файл затронут', 'red bold');
+            await sleep(1500);
+        }
+
+        // --- СЦЕНА 4: ТРЕБОВАНИЕ ВЫКУПА (РУССКИЙ) ---
+        async function scene_ransomware() {
+            clearScreen();
+            terminal.className = 'terminal';
+            
+            const machineId = '0x' + Math.floor(Math.random() * 0xFFFFFFFF).toString(16).toUpperCase();
+            const wallet = config.platform === 'windows' 
+                ? "bc1qxy2kgdlgjqs2t4ulz2k4x8k3j5x7l9m8n6p5q4r"
+                : "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
+            
+            const ransomLines = [
+                { text: '╔══════════════════════════════════════════════════════════════════════════════╗', class: 'red bold' },
+                { text: '║                         !!! СИСТЕМА СКОМПРОМЕТИРОВАНА !!!                   ║', class: 'red bold' },
+                { text: '╚══════════════════════════════════════════════════════════════════════════════╝', class: 'red bold' },
+                { text: '', class: '' },
+                { text: '    ВСЕ ВАШИ ЛИЧНЫЕ ФАЙЛЫ БЫЛИ ЗАШИФРОВАНЫ.', class: 'red bold' },
+                { text: '', class: '' },
+                { text: '    ├─ Документы: 1 847 файлов зашифровано', class: 'red' },
+                { text: '    ├─ Изображения: 1 203 файла зашифровано', class: 'red' },
+                { text: '    ├─ Архивы: 512 файлов зашифровано', class: 'red' },
+                { text: '    └─ Системные ключи: 23 учётных данных похищено', class: 'red' },
+                { text: '', class: '' },
+                { text: `    Уникальный ID устройства: ${machineId}`, class: 'yellow' },
+                { text: '', class: '' },
+                { text: '    Для восстановления доступа переведите 0.5 BTC на кошелёк:', class: 'red' },
+                { text: `    ${wallet}`, class: 'cyan bold' },
+                { text: '', class: '' },
+                { text: '    [!] НЕ ВЫКЛЮЧАЙТЕ И НЕ ПЕРЕЗАГРУЖАЙТЕ УСТРОЙСТВО', class: 'red bold blink' },
+                { text: '    [!] ПОТЕРЯ ДАННЫХ БУДЕТ БЕЗВОЗВРАТНОЙ', class: 'red bold' },
+                { text: '    [!] ОТСЧЁТ ДО УДАЛЕНИЯ ДАННЫХ: 45 СЕКУНД', class: 'red bold' },
+            ];
+            
+            await addLines(ransomLines, 60);
+            
+            // Обратный отсчёт
+            for (let i = 45; i >= 0; i -= 5) {
+                await sleep(5000);
+                const countdownLine = document.createElement('div');
+                countdownLine.className = 'line red';
+                countdownLine.innerHTML = `    Удаление данных через: ${i} секунд...`;
+                terminal.appendChild(countdownLine);
+                terminal.scrollTop = terminal.scrollHeight;
+            }
+        }
+
+        // --- СЦЕНА 5: ФАЛООТКЛЮЧЕНИЕ (РУССКИЙ) ---
+        async function scene_shutdown() {
+            clearScreen();
+            terminal.className = 'terminal';
+            
+            addLine('╔════════════════════════════════════════════════════╗', 'red bold');
+            addLine('║         ИНИЦИИРОВАНА ПОСЛЕДОВАТЕЛЬНОСТЬ           ║', 'red bold');
+            addLine('║              АВАРИЙНОГО ОТКЛЮЧЕНИЯ                 ║', 'red bold');
+            addLine('╚════════════════════════════════════════════════════╝', 'red bold');
+            addLine('', '');
+            
+            for (let i = 10; i >= 0; i--) {
+                addLine(`    Сохранение дампа аварийной памяти... ${i} секунд`, 'yellow');
+                await sleep(1000);
+                // Удаляем последнюю строку, чтобы был эффект обновления
+                const lines = terminal.querySelectorAll('.line');
+                if (lines.length > 4) {
+                    lines[lines.length - 1].remove();
+                }
+            }
+            addLine('    [КРИТИЧЕСКАЯ ОШИБКА] Не удалось сохранить дамп', 'red');
+            await sleep(1000);
+            addLine('    [КРИТИЧЕСКАЯ ОШИБКА] Журналы системы повреждены', 'red');
+            await sleep(1000);
+        }
+
+        // --- СЦЕНА 6: РАЗОБЛАЧЕНИЕ (РУССКИЙ) ---
+        async function scene_reveal() {
+            clearScreen();
+            terminal.className = 'terminal';
+            
+            const revealLines = [
+                { text: '╔══════════════════════════════════════════════════════════════════╗', class: 'green bold' },
+                { text: '║                                                                    ║', class: 'green' },
+                { text: '║                    ╔══════════════════════════╗                    ║', class: 'green' },
+                { text: '║                    ║     [ ЭТО ПРОСТО ПРАНК! ]    ║                    ║', class: 'green bold' },
+                { text: '║                    ╚══════════════════════════╝                    ║', class: 'green' },
+                { text: '║                                                                    ║', class: 'green' },
+                { text: '║    Ваше устройство на 100% БЕЗОПАСНО.                             ║', class: 'green' },
+                { text: '║    Никакие файлы НЕ были зашифрованы.                             ║', class: 'green' },
+                { text: '║    Никакое вредоносное ПО НЕ было установлено.                   ║', class: 'green' },
+                { text: '║    Никакие учётные данные НЕ были похищены.                      ║', class: 'green' },
+                { text: '║                                                                    ║', class: 'green' },
+                { text: '║    Это была СИМУЛЯЦИЯ атаки.                                      ║', class: 'green' },
+                { text: '║    Всё, что вы видели — визуальная иллюзия в браузере.            ║', class: 'green' },
+                { text: '║                                                                    ║', class: 'green' },
+                { text: '║    Выдохните. Ваши данные в целости.                              ║', class: 'green' },
+                { text: '║    Ваша система не тронута.                                       ║', class: 'green' },
+                { text: '║                                                                    ║', class: 'green' },
+                { text: '║    Нажмите кнопку ниже, чтобы закрыть...                         ║', class: 'green' },
+                { text: '║                                                                    ║', class: 'green' },
+                { text: '╚══════════════════════════════════════════════════════════════════╝', class: 'green bold' },
+            ];
+            
+            await addLines(revealLines, 40);
+            
+            // Добавляем кнопку закрытия
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✖ ЗАКРЫТЬ ✖';
+            closeBtn.style.cssText = `
+                margin-top: 30px;
+                padding: 12px 30px;
+                background: #00ff00;
+                color: #000;
+                border: none;
+                font-family: monospace;
+                font-size: 18px;
+                font-weight: bold;
+                cursor: pointer;
+                border-radius: 8px;
+                display: block;
+                margin-left: auto;
+                margin-right: auto;
+            `;
+            closeBtn.onclick = () => {
+                window.Telegram.WebApp.close();
+            };
+            terminal.appendChild(closeBtn);
+        }
+
+        // --- ОСНОВНОЙ ЗАПУСК ---
+        async function main() {
+            // Инициализация Telegram WebApp
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.ready();
+                window.Telegram.WebApp.expand();
+                window.Telegram.WebApp.enableClosingConfirmation();
+            }
+            
+            try {
+                await scene_bsod();
+                await scene_token_dump();
+                await scene_encryption();
+                await scene_ransomware();
+                await scene_shutdown();
+                await scene_reveal();
+            } catch (e) {
+                console.error(e);
+                addLine('[ОШИБКА] Но всё равно — это был пранк. Ваше устройство в безопасности.', 'green');
+            }
+        }
+        
+        // Запускаем
+        main();
+    </script>
+</body>
+</html>
